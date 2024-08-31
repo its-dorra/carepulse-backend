@@ -2,7 +2,9 @@ import type { RequestHandler } from 'express';
 import type { z, ZodError } from 'zod';
 import type { CustomError } from '../types/error';
 
-export const validateDataWithZod = (schema: z.ZodObject<any, any>) => {
+export const validateDataWithZod = (
+  schema: z.ZodObject<any, any> | z.ZodEffects<z.ZodObject<any, any>>
+) => {
   const middleware: RequestHandler = (req, res, next) => {
     try {
       req.body = schema.parse(req.body);

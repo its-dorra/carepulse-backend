@@ -1,10 +1,11 @@
-import type { RequestHandler } from 'express';
+import type { Request, RequestHandler } from 'express';
 import { db } from '../db';
 import { users as usersTable } from '../db/schema/users';
 import { eq } from 'drizzle-orm';
 import type { CustomError } from '../types/error';
-import jwt from 'jsonwebtoken';
+import jwt, { type JwtPayload } from 'jsonwebtoken';
 import { cookieSettings } from '../constants/cookieSettings';
+import type { CustomRequest } from '../types/customRequest';
 
 export const login: RequestHandler = async (req, res, next) => {
   const { email, password } = req.body;
@@ -78,4 +79,35 @@ export const signup: RequestHandler = async (req, res, next) => {
     };
     next(error);
   }
+};
+
+export const refreshToken: RequestHandler = (req: CustomRequest, res, next) => {
+  const token = req.cookies.token;
+
+  if (!token) {
+    const error: CustomError = {
+      message: 'Unauthorized',
+      statusCode: 401,
+    };
+    throw error;
+  }
+
+  const isValid = jwt.verify(token, process.env.REFRESH_SECRET!) as JwtPayload;
+
+  if (!isValid) {
+    const error: CustomError = {
+      message: 'Invalid token',
+      statusCode: 403,
+    };
+    throw error;
+  }
+
+  // TODO: verify the token with the one in db
+
+  const accessToken = jwt.sign(req.userId!, process.env.ACCESS_SECRET!, {
+    expiresIn: '10s',
+    algorithm: 'HS256',
+  });
+
+  res.json({ token: accessToken });
 };
