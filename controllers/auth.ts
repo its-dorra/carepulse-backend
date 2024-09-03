@@ -1,7 +1,7 @@
 import type { Request, RequestHandler } from 'express';
 import { db } from '../db';
 import { users as usersTable } from '../db/schema/users';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { CustomError } from '../types/error';
 import jwt, { type JwtPayload } from 'jsonwebtoken';
 import { cookieSettings } from '../constants/cookieSettings';
@@ -47,11 +47,13 @@ export const login: RequestHandler = async (req, res, next) => {
       process.env.REFRESH_SECRET!,
       {
         algorithm: 'HS256',
-        expiresIn: '1d',
+        expiresIn: '20s',
       }
     );
 
-    res.cookie('token', refreshToken, cookieSettings);
+    const encodedAuth = JSON.stringify({ refreshToken, id: user.id });
+
+    res.cookie('auth', encodedAuth, cookieSettings);
 
     res.json({ message: 'Logged in successfully', token: accessToken });
   } catch (err) {
@@ -64,12 +66,17 @@ export const login: RequestHandler = async (req, res, next) => {
 };
 
 export const signup: RequestHandler = async (req, res, next) => {
-  const { email, password } = req.body;
+  const { email, password, phoneNumber } = req.body;
 
   try {
     const hashedPassword = await Bun.password.hash(password);
 
-    await db.insert(usersTable).values({ email, password: hashedPassword });
+    console.log('here1');
+
+    await db
+      .insert(usersTable)
+      .values({ email, password: hashedPassword, phoneNumber });
+    console.log('here2');
 
     res.status(201).json({ message: 'User created successfully' });
   } catch (err) {
@@ -81,16 +88,22 @@ export const signup: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const refreshToken: RequestHandler = (req: CustomRequest, res, next) => {
-  const token = req.cookies.token;
+export const refreshToken: RequestHandler = async (
+  req: CustomRequest,
+  res,
+  next
+) => {
+  const auth = req.cookies.auth;
 
-  if (!token) {
+  if (!auth) {
     const error: CustomError = {
       message: 'Unauthorized',
       statusCode: 401,
     };
     throw error;
   }
+
+  const { token, id } = JSON.parse(auth);
 
   const isValid = jwt.verify(token, process.env.REFRESH_SECRET!) as JwtPayload;
 
@@ -102,7 +115,20 @@ export const refreshToken: RequestHandler = (req: CustomRequest, res, next) => {
     throw error;
   }
 
-  // TODO: verify the token with the one in db
+  const tokenInDB = (
+    await db
+      .select()
+      .from(usersTable)
+      .where(and(eq(usersTable.token, token), eq(usersTable.id, id)))
+  )?.[0];
+
+  if (!tokenInDB) {
+    const error: CustomError = {
+      message: 'Unauthorized',
+      statusCode: 401,
+    };
+    throw error;
+  }
 
   const accessToken = jwt.sign(req.userId!, process.env.ACCESS_SECRET!, {
     expiresIn: '10s',
@@ -110,4 +136,9 @@ export const refreshToken: RequestHandler = (req: CustomRequest, res, next) => {
   });
 
   res.json({ token: accessToken });
+};
+
+export const logout: RequestHandler = (req, res, next) => {
+  res.clearCookie('auth', cookieSettings);
+  res.json({ message: 'Logged out successfully' });
 };

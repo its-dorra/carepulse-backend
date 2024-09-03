@@ -15,7 +15,8 @@
   },
   "scripts": {
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "bun migrate.ts"
+    "db:migrate": "bun migrate.ts",
+    "dev": "bun app.ts"
   },
   "dependencies": {
     "cookie-parser": "^1.4.6",

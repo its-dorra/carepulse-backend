@@ -15,6 +15,27 @@
       "when": 1725137862323,
       "tag": "0001_glorious_christian_walker",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1725356947451,
+      "tag": "0002_square_daimon_hellstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1725357120605,
+      "tag": "0003_workable_scarecrow",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1725358118350,
+      "tag": "0004_loving_major_mapleleaf",
+      "breakpoints": true
     }
   ]
 }
