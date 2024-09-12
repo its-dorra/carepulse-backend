@@ -1,9 +1,263 @@
 {
-  "id": "07bbaee6-575c-4bdf-831e-9b742823a449",
-  "prevId": "e941283c-3b95-45e9-babe-6c3bf9986610",
+  "id": "2b8f6f75-30d0-44b5-8f1b-456932215fe3",
+  "prevId": "4f24b127-d7ff-41a7-bc85-36d4c7daf33a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.doctors": {
+      "name": "doctors",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doctorName": {
+          "name": "doctorName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "imgPath": {
+          "name": "imgPath",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.newAppointments": {
+      "name": "newAppointments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doctorId": {
+          "name": "doctorId",
+          "type": "serial",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reasonOfAppointment": {
+          "name": "reasonOfAppointment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "additionalComments": {
+          "name": "additionalComments",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expectedDate": {
+          "name": "expectedDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "appointmentStatus": {
+          "name": "appointmentStatus",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Pending'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "newAppointments_userId_users_id_fk": {
+          "name": "newAppointments_userId_users_id_fk",
+          "tableFrom": "newAppointments",
+          "tableTo": "users",
+          "columnsFrom": [
+            "userId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "newAppointments_doctorId_doctors_id_fk": {
+          "name": "newAppointments_doctorId_doctors_id_fk",
+          "tableFrom": "newAppointments",
+          "tableTo": "doctors",
+          "columnsFrom": [
+            "doctorId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.personalInfos": {
+      "name": "personalInfos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dateOfBirth": {
+          "name": "dateOfBirth",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gender": {
+          "name": "gender",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occupation": {
+          "name": "occupation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "emergencyName": {
+          "name": "emergencyName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "emergencyPhoneNumber": {
+          "name": "emergencyPhoneNumber",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doctorId": {
+          "name": "doctorId",
+          "type": "serial",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "insuranceProvider": {
+          "name": "insuranceProvider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "insurancePolicyNumber": {
+          "name": "insurancePolicyNumber",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "allergies": {
+          "name": "allergies",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currentMedications": {
+          "name": "currentMedications",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "familyMedicalHistory": {
+          "name": "familyMedicalHistory",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pastMedicalHistory": {
+          "name": "pastMedicalHistory",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "identificationType": {
+          "name": "identificationType",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "identificationNumber": {
+          "name": "identificationNumber",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "personalInfos_userId_users_id_fk": {
+          "name": "personalInfos_userId_users_id_fk",
+          "tableFrom": "personalInfos",
+          "tableTo": "users",
+          "columnsFrom": [
+            "userId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "personalInfos_doctorId_doctors_id_fk": {
+          "name": "personalInfos_doctorId_doctors_id_fk",
+          "tableFrom": "personalInfos",
+          "tableTo": "doctors",
+          "columnsFrom": [
+            "doctorId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
     "public.users": {
       "name": "users",
       "schema": "",
@@ -21,11 +275,36 @@
           "primaryKey": false,
           "notNull": true
         },
-        "password": {
-          "name": "password",
+        "phoneNumber": {
+          "name": "phoneNumber",
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "fullName": {
+          "name": "fullName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'user'"
+        },
+        "pinCode": {
+          "name": "pinCode",
+          "type": "varchar(6)",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -47,7 +326,22 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        },
+        "users_phoneNumber_unique": {
+          "name": "users_phoneNumber_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "phoneNumber"
+          ]
+        }
+      }
     }
   },
   "enums": {},

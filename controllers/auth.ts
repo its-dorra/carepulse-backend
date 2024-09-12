@@ -1,14 +1,24 @@
-import type { Request, RequestHandler } from 'express';
+import type { RequestHandler } from 'express';
 import { db } from '../db';
 import { users as usersTable } from '../db/schema/users';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import type { CustomError } from '../types/error';
-import jwt, { type JwtPayload } from 'jsonwebtoken';
-import { cookieSettings } from '../constants/cookieSettings';
-import type { CustomRequest } from '../types/customRequest';
+import jwt from 'jsonwebtoken';
+import {
+  refreshTokenCookieOptions,
+  accessTokenCookieOptions,
+  phoneNumberCookieOptions,
+} from '../constants/cookieSettings';
+import twilio from 'twilio';
+import { generatePin } from '../utils';
+
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+
+const client = twilio(accountSid, authToken);
 
 export const login: RequestHandler = async (req, res, next) => {
-  const { email, password } = req.body;
+  const { email, phoneNumber } = req.body;
   const error: CustomError = {
     message: 'Invalid credential',
     statusCode: 401,
@@ -23,39 +33,27 @@ export const login: RequestHandler = async (req, res, next) => {
       throw error;
     }
 
-    const isMatch = await Bun.password.verify(password, user.password);
+    const isMatch = user.phoneNumber === phoneNumber;
 
     if (!isMatch) {
       throw error;
     }
 
-    const accessToken = jwt.sign(
-      {
-        userId: user.id,
-      },
-      process.env.ACCESS_SECRET!,
-      {
-        algorithm: 'HS256',
-        expiresIn: '10s',
-      }
-    );
+    const pin = generatePin();
 
-    const refreshToken = jwt.sign(
-      {
-        userId: user.id,
-      },
-      process.env.REFRESH_SECRET!,
-      {
-        algorithm: 'HS256',
-        expiresIn: '20s',
-      }
-    );
+    await db.update(usersTable).set({ phoneOtp: pin });
 
-    const encodedAuth = JSON.stringify({ refreshToken, id: user.id });
+    await client.messages.create({
+      from: '+18103669612',
+      to: phoneNumber,
+      body: `Your verification pin is : ${pin}`,
+    });
 
-    res.cookie('auth', encodedAuth, cookieSettings);
+    res.cookie('phoneNumber', phoneNumber, phoneNumberCookieOptions);
 
-    res.json({ message: 'Logged in successfully', token: accessToken });
+    res.cookie('userId', user.id, refreshTokenCookieOptions);
+
+    res.json({ message: 'Sent 6-digit pin' });
   } catch (err) {
     const error: CustomError = {
       message: (err as CustomError).message || 'Internal error',
@@ -66,17 +64,10 @@ export const login: RequestHandler = async (req, res, next) => {
 };
 
 export const signup: RequestHandler = async (req, res, next) => {
-  const { email, password, phoneNumber } = req.body;
+  const { email, fullName, phoneNumber } = req.body;
 
   try {
-    const hashedPassword = await Bun.password.hash(password);
-
-    console.log('here1');
-
-    await db
-      .insert(usersTable)
-      .values({ email, password: hashedPassword, phoneNumber });
-    console.log('here2');
+    await db.insert(usersTable).values({ email, phoneNumber, fullName });
 
     res.status(201).json({ message: 'User created successfully' });
   } catch (err) {
@@ -88,57 +79,70 @@ export const signup: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const refreshToken: RequestHandler = async (
-  req: CustomRequest,
-  res,
-  next
-) => {
-  const auth = req.cookies.auth;
+export const loginWithPhoneOtp: RequestHandler = async (req, res, next) => {
+  const error: CustomError = {
+    message: 'Invalid credential',
+    statusCode: 401,
+  };
 
-  if (!auth) {
-    const error: CustomError = {
-      message: 'Unauthorized',
-      statusCode: 401,
-    };
-    throw error;
+  const { phoneNumber, userId } = req.cookies;
+  try {
+    if (!phoneNumber) {
+      throw error;
+    }
+
+    const user = (
+      await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.phoneNumber, phoneNumber))
+    )?.[0];
+
+    if (!user) throw error;
+
+    const { otp } = req.body;
+
+    const isMatch = user.phoneOtp == otp;
+
+    if (!isMatch) throw error;
+
+    await db.update(usersTable).set({ phoneOtp: null });
+
+    res.clearCookie('phoneNumber', phoneNumberCookieOptions);
+
+    const accessToken = jwt.sign(
+      {
+        userId,
+      },
+      process.env.ACCESS_SECRET!,
+      {
+        algorithm: 'HS256',
+        expiresIn: '15s',
+      }
+    );
+
+    const refreshToken = jwt.sign(
+      {
+        userId: user.id,
+      },
+      process.env.REFRESH_SECRET!,
+      {
+        algorithm: 'HS256',
+        expiresIn: '45s',
+      }
+    );
+
+    res.cookie('accessToken', accessToken, accessTokenCookieOptions);
+    res.cookie('refreshToken', refreshToken, refreshTokenCookieOptions);
+
+    res.json({ message: 'Logged in successfully' });
+  } catch (err) {
+    next(err);
   }
-
-  const { token, id } = JSON.parse(auth);
-
-  const isValid = jwt.verify(token, process.env.REFRESH_SECRET!) as JwtPayload;
-
-  if (!isValid) {
-    const error: CustomError = {
-      message: 'Invalid token',
-      statusCode: 403,
-    };
-    throw error;
-  }
-
-  const tokenInDB = (
-    await db
-      .select()
-      .from(usersTable)
-      .where(and(eq(usersTable.token, token), eq(usersTable.id, id)))
-  )?.[0];
-
-  if (!tokenInDB) {
-    const error: CustomError = {
-      message: 'Unauthorized',
-      statusCode: 401,
-    };
-    throw error;
-  }
-
-  const accessToken = jwt.sign(req.userId!, process.env.ACCESS_SECRET!, {
-    expiresIn: '10s',
-    algorithm: 'HS256',
-  });
-
-  res.json({ token: accessToken });
 };
 
 export const logout: RequestHandler = (req, res, next) => {
-  res.clearCookie('auth', cookieSettings);
+  //   res.clearCookie('auth', cookieSettings);
+  res.clearCookie('phoneNumber', phoneNumberCookieOptions);
   res.json({ message: 'Logged out successfully' });
 };
