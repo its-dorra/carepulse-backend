@@ -1,13 +1,15 @@
 import type { RequestHandler } from 'express';
 import { db } from '../db';
 import { users as usersTable } from '../db/schema/users';
-import { eq } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 import type { CustomError } from '../types/error';
 import jwt from 'jsonwebtoken';
 import {
   refreshTokenCookieOptions,
   accessTokenCookieOptions,
   phoneNumberCookieOptions,
+  accessTokenDuration,
+  refreshTokenDuration,
 } from '../constants/cookieSettings';
 import twilio from 'twilio';
 import { generatePin } from '../utils';
@@ -16,6 +18,69 @@ const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 
 const client = twilio(accountSid, authToken);
+
+export const loginAdmin: RequestHandler = async (req, res, next) => {
+  const { pinCode } = req.body;
+
+  const error: CustomError = {
+    message: 'Invalid credential',
+    statusCode: 401,
+  };
+
+  try {
+    const user = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.role, 'admin'))
+      .then((users) => users?.[0]);
+
+    if (!user) throw error;
+
+    const isMatch = await Bun.password.verify(pinCode, user.pinCode!);
+
+    if (!isMatch) throw error;
+
+    const accessToken = jwt.sign(
+      {
+        userId: user.id,
+      },
+      process.env.ACCESS_SECRET!,
+      {
+        algorithm: 'HS256',
+        expiresIn: accessTokenDuration,
+      }
+    );
+
+    const refreshToken = jwt.sign(
+      {
+        userId: user.id,
+      },
+      process.env.REFRESH_SECRET!,
+      {
+        algorithm: 'HS256',
+        expiresIn: refreshTokenDuration,
+      }
+    );
+
+    await db
+      .update(usersTable)
+      .set({ token: refreshToken })
+      .where(eq(usersTable.id, user.id));
+
+    res.cookie('accessToken', accessToken, accessTokenCookieOptions);
+    res.cookie('refreshToken', refreshToken, refreshTokenCookieOptions);
+    res.cookie('role', 'admin', refreshTokenCookieOptions);
+    res.cookie('userId', user.id, refreshTokenCookieOptions);
+
+    res.status(200).json({ message: 'Logged in successfully' });
+  } catch (err) {
+    const error: CustomError = {
+      message: (err as CustomError).message || 'Internal Error',
+      statusCode: (err as CustomError).statusCode || 500,
+    };
+    next(error);
+  }
+};
 
 export const login: RequestHandler = async (req, res, next) => {
   const { email, phoneNumber } = req.body;
@@ -41,17 +106,20 @@ export const login: RequestHandler = async (req, res, next) => {
 
     const pin = generatePin();
 
-    await db.update(usersTable).set({ phoneOtp: pin });
+    await db
+      .update(usersTable)
+      .set({ phoneOtp: pin })
+      .where(eq(usersTable.id, user.id));
 
-    await client.messages.create({
-      from: '+18103669612',
-      to: phoneNumber,
-      body: `Your verification pin is : ${pin}`,
-    });
+    // await client.messages.create({
+    //   from: '+18103669612',
+    //   to: phoneNumber,
+    //   body: `Your verification pin is : ${pin}`,
+    // });
 
     res.cookie('phoneNumber', phoneNumber, phoneNumberCookieOptions);
 
-    res.cookie('userId', user.id, refreshTokenCookieOptions);
+    res.cookie('userId', user.id, phoneNumberCookieOptions);
 
     res.json({ message: 'Sent 6-digit pin' });
   } catch (err) {
@@ -67,13 +135,30 @@ export const signup: RequestHandler = async (req, res, next) => {
   const { email, fullName, phoneNumber } = req.body;
 
   try {
+    const existingUser = await db
+      .select()
+      .from(usersTable)
+      .where(
+        or(eq(usersTable.email, email), eq(usersTable.phoneNumber, phoneNumber))
+      )
+      .then((users) => users[0]);
+
+    if (existingUser) {
+      const error: CustomError = {
+        message: 'User already exists',
+        statusCode: 409,
+      };
+
+      throw error;
+    }
+
     await db.insert(usersTable).values({ email, phoneNumber, fullName });
 
     res.status(201).json({ message: 'User created successfully' });
   } catch (err) {
     const error: CustomError = {
-      message: 'Internal error',
-      statusCode: 500,
+      message: (err as CustomError).message || 'Internal error',
+      statusCode: (err as CustomError).statusCode || 500,
     };
     next(error);
   }
@@ -106,9 +191,8 @@ export const loginWithPhoneOtp: RequestHandler = async (req, res, next) => {
 
     if (!isMatch) throw error;
 
-    await db.update(usersTable).set({ phoneOtp: null });
-
     res.clearCookie('phoneNumber', phoneNumberCookieOptions);
+    res.clearCookie('userId', phoneNumberCookieOptions);
 
     const accessToken = jwt.sign(
       {
@@ -117,7 +201,7 @@ export const loginWithPhoneOtp: RequestHandler = async (req, res, next) => {
       process.env.ACCESS_SECRET!,
       {
         algorithm: 'HS256',
-        expiresIn: '15s',
+        expiresIn: accessTokenDuration,
       }
     );
 
@@ -128,21 +212,30 @@ export const loginWithPhoneOtp: RequestHandler = async (req, res, next) => {
       process.env.REFRESH_SECRET!,
       {
         algorithm: 'HS256',
-        expiresIn: '45s',
+        expiresIn: refreshTokenDuration,
       }
     );
 
+    await db
+      .update(usersTable)
+      .set({ phoneOtp: null, token: refreshToken })
+      .where(eq(usersTable.id, user.id));
+
     res.cookie('accessToken', accessToken, accessTokenCookieOptions);
     res.cookie('refreshToken', refreshToken, refreshTokenCookieOptions);
+    res.cookie('userId', userId, refreshTokenCookieOptions);
+    res.cookie('role', 'user', refreshTokenCookieOptions);
 
-    res.json({ message: 'Logged in successfully' });
+    res.status(200).json({ message: 'Logged in successfully' });
   } catch (err) {
     next(err);
   }
 };
 
 export const logout: RequestHandler = (req, res, next) => {
-  //   res.clearCookie('auth', cookieSettings);
+  res.clearCookie('accessToken', accessTokenCookieOptions);
+  res.clearCookie('refreshToken', refreshTokenCookieOptions);
+  res.clearCookie('role', refreshTokenCookieOptions);
   res.clearCookie('phoneNumber', phoneNumberCookieOptions);
   res.json({ message: 'Logged out successfully' });
 };

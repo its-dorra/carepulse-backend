@@ -1,10 +1,14 @@
 import express from 'express';
-import auth from './routes/auth';
 import helmet from 'helmet';
 import cors from 'cors';
-import { error } from './middlewares/error';
-import { corsOptions } from './constants/cors';
 import cookieParser from 'cookie-parser';
+
+import { error } from './middlewares/error';
+
+import { corsOptions } from './constants/cors';
+
+import auth from './routes/auth';
+import appointments from './routes/appointments';
 
 const app = express();
 
@@ -14,6 +18,8 @@ app.use(cors(corsOptions));
 app.use(cookieParser());
 
 app.use('/auth', auth);
+
+app.use(appointments);
 
 app.use(error);
 

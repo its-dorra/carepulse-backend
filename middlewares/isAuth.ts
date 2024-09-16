@@ -5,81 +5,57 @@ import type { CustomRequest } from '../types/customRequest';
 import { db } from '../db';
 import { users as usersTable } from '../db/schema/users';
 import { and, eq } from 'drizzle-orm';
-import { accessTokenCookieOptions } from '../constants/cookieSettings';
+import {
+  accessTokenCookieOptions,
+  accessTokenDuration,
+} from '../constants/cookieSettings';
 
-// export const isAuth: RequestHandler = (req: CustomRequest, res, next) => {
-//   const authHeader = req.get('Authorization');
+export const isAuth: RequestHandler = async (req, res, next) => {
+  const { accessToken, refreshToken, userId } = req.cookies;
 
-//   if (!authHeader?.startsWith('Bearer')) {
-//     const error: CustomError = {
-//       message: 'Unauthorized',
-//       statusCode: 401,
-//     };
-//     throw error;
-//   }
+  try {
+    const isVerifiedAccessToken =
+      accessToken && jwt.verify(accessToken, process.env.ACCESS_SECRET!);
 
-//   const token = authHeader.split(' ')[1];
+    if (isVerifiedAccessToken) {
+      return next();
+    }
+    const isVerifiedRefreshToken =
+      refreshToken && jwt.verify(refreshToken, process.env.REFRESH_SECRET!);
 
-//   const isValid = jwt.verify(token, process.env.ACCESS_SECRET!) as JwtPayload;
+    if (!isVerifiedRefreshToken) {
+      throw { message: 'Invalid token', statusCode: 403 };
+    }
 
-//   if (!isValid) {
-//     const error: CustomError = {
-//       message: 'Invalid token',
-//       statusCode: 403,
-//     };
-//     throw error;
-//   }
-
-//   const { userId } = jwt.decode(token) as JwtPayload;
-
-//   req.userId = userId;
-//   next();
-// };
-
-export const isAuth: RequestHandler = async (req: CustomRequest, res, next) => {
-  const auth = req.cookies.auth;
-
-  if (!auth) {
-    const error: CustomError = {
-      message: 'Unauthorized',
-      statusCode: 401,
-    };
-    throw error;
-  }
-
-  const { token, id } = JSON.parse(auth);
-
-  const isValid = jwt.verify(token, process.env.REFRESH_SECRET!) as JwtPayload;
-
-  if (!isValid) {
-    const error: CustomError = {
-      message: 'Invalid token',
-      statusCode: 403,
-    };
-    throw error;
-  }
-
-  const tokenInDB = (
-    await db
+    const tokenInDB = await db
       .select()
       .from(usersTable)
-      .where(and(eq(usersTable.token, token), eq(usersTable.id, id)))
-  )?.[0];
+      .where(and(eq(usersTable.id, userId), eq(usersTable.token, refreshToken)))
+      .then((res) => res?.[0]);
 
-  if (!tokenInDB) {
-    const error: CustomError = {
-      message: 'Unauthorized',
-      statusCode: 401,
+    if (!tokenInDB) {
+      throw { message: 'Unauthorized', statusCode: 401 };
+    }
+
+    const updatedAccessToken = jwt.sign(
+      {
+        userId,
+      },
+      process.env.ACCESS_SECRET!,
+      {
+        algorithm: 'HS256',
+        expiresIn: accessTokenDuration,
+      }
+    );
+
+    res.cookie('accessToken', updatedAccessToken, accessTokenCookieOptions);
+
+    next();
+  } catch (err) {
+    const error = {
+      message: (err as any).message || 'Internal Error',
+      statusCode: (err as any).statusCode || 500,
     };
-    throw error;
+    next(error);
   }
-
-  const accessToken = jwt.sign(req.userId!, process.env.ACCESS_SECRET!, {
-    expiresIn: '10s',
-    algorithm: 'HS256',
-  });
-
-  res.cookie('accessToken', accessToken, accessTokenCookieOptions);
-
-  next();
 };

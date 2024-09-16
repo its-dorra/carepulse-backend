@@ -1,0 +1,1 @@
+ALTER TABLE "new_appointments" ALTER COLUMN "additional_comments" DROP NOT NULL;

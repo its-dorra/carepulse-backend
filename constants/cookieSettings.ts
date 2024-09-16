@@ -1,11 +1,15 @@
+export const accessTokenDuration = 10 * 1000;
+
+export const refreshTokenDuration = 60 * 1000;
+
 export const accessTokenCookieOptions = {
-  maxAge: 15 * 1000,
+  maxAge: accessTokenDuration,
   secure: process.env.BUN_ENV === 'production',
   httpOnly: true,
 };
 
 export const refreshTokenCookieOptions = {
-  maxAge: 45 * 1000,
+  maxAge: refreshTokenDuration,
   secure: process.env.BUN_ENV === 'production',
   httpOnly: true,
 };

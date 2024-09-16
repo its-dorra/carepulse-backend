@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { login, loginWithPhoneOtp, logout, signup } from '../controllers/auth';
+import {
+  login,
+  loginAdmin,
+  loginWithPhoneOtp,
+  logout,
+  signup,
+} from '../controllers/auth';
 import { validateDataWithZod } from '../middlewares/validateData';
 import { userLoginSchema, userRegistrationSchema } from '../schemas/userSchema';
 import { rateLimit } from 'express-rate-limit';
@@ -11,16 +17,13 @@ const limiter = rateLimit({
 
 const router = Router();
 
-router.post('/login', limiter, validateDataWithZod(userLoginSchema), login);
+router.post('/login', validateDataWithZod(userLoginSchema), login);
 
-router.post(
-  '/signup',
-  limiter,
-  validateDataWithZod(userRegistrationSchema),
-  signup
-);
+router.post('/signup', validateDataWithZod(userRegistrationSchema), signup);
 
-router.post('/verifyOtp', loginWithPhoneOtp);
+router.post('/login-admin', loginAdmin);
+
+router.post('/verify-otp', loginWithPhoneOtp);
 
 router.post('/logout', logout);
 

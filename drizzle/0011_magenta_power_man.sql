@@ -1,0 +1,1 @@
+ALTER TABLE "appointments_count" ADD PRIMARY KEY ("status");

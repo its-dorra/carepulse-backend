@@ -4,15 +4,16 @@ export const users = pgTable(
   'users',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    email: varchar('email', { length: 256 }).unique().notNull(),
-    phoneNumber: text('phoneNumber').unique().notNull(),
-    fullName: text('fullName').notNull(),
+    email: varchar('email', { length: 256 }).unique(),
+    phoneNumber: text('phone_number').unique(),
+    fullName: text('full_name'),
     token: text('token'),
     role: text('role', { enum: ['user', 'admin'] })
       .notNull()
       .default('user'),
-    phoneOtp: varchar('phoneOtp', { length: 6 }),
-    pinCode: varchar('pinCode', { length: 6 }),
+    phoneOtp: varchar('phone_otp', { length: 6 }),
+    pinCode: text('pin_code'),
+    imageUrl: text('image_url'),
   },
   (users) => {
     return {

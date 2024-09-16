@@ -6,5 +6,3 @@ export function generatePin() {
   }
   return pin;
 }
-
-console.log(generatePin());

@@ -16,7 +16,8 @@
   "scripts": {
     "db:generate": "drizzle-kit generate",
     "db:migrate": "bun migrate.ts",
-    "dev": "bun --watch app.ts"
+    "dev": "bun --watch app.ts",
+    "db:studio": "bunx drizzle-kit studio"
   },
   "dependencies": {
     "cookie-parser": "^1.4.6",
