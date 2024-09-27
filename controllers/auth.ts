@@ -13,6 +13,7 @@ import {
 } from '../constants/cookieSettings';
 import twilio from 'twilio';
 import { generatePin } from '../utils';
+import { personalInfo } from '../db/schema/personalInfo';
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -66,7 +67,6 @@ export const loginAdmin: RequestHandler = async (req, res, next) => {
       .update(usersTable)
       .set({ token: refreshToken })
       .where(eq(usersTable.id, user.id));
-
     res.cookie('accessToken', accessToken, accessTokenCookieOptions);
     res.cookie('refreshToken', refreshToken, refreshTokenCookieOptions);
     res.cookie('role', 'admin', refreshTokenCookieOptions);
@@ -84,6 +84,7 @@ export const loginAdmin: RequestHandler = async (req, res, next) => {
 
 export const login: RequestHandler = async (req, res, next) => {
   const { email, phoneNumber } = req.body;
+
   const error: CustomError = {
     message: 'Invalid credential',
     statusCode: 401,
@@ -91,7 +92,15 @@ export const login: RequestHandler = async (req, res, next) => {
 
   try {
     const user = (
-      await db.select().from(usersTable).where(eq(usersTable.email, email))
+      await db
+        .select({
+          id: usersTable.id,
+          personalInfoId: personalInfo.id,
+          phoneNumber: usersTable.phoneNumber,
+        })
+        .from(usersTable)
+        .where(eq(usersTable.email, email))
+        .leftJoin(personalInfo, eq(usersTable.id, personalInfo.userId))
     )?.[0];
 
     if (!user) {
@@ -104,24 +113,47 @@ export const login: RequestHandler = async (req, res, next) => {
       throw error;
     }
 
-    const pin = generatePin();
+    const accessToken = jwt.sign(
+      {
+        userId: user.id,
+      },
+      process.env.ACCESS_SECRET!,
+      {
+        algorithm: 'HS256',
+        expiresIn: accessTokenDuration,
+      }
+    );
+
+    const refreshToken = jwt.sign(
+      {
+        userId: user.id,
+      },
+      process.env.REFRESH_SECRET!,
+      {
+        algorithm: 'HS256',
+        expiresIn: refreshTokenDuration,
+      }
+    );
 
     await db
       .update(usersTable)
-      .set({ phoneOtp: pin })
+      .set({ phoneOtp: null, token: refreshToken })
       .where(eq(usersTable.id, user.id));
 
-    // await client.messages.create({
-    //   from: '+18103669612',
-    //   to: phoneNumber,
-    //   body: `Your verification pin is : ${pin}`,
-    // });
+    res.cookie('accessToken', accessToken, accessTokenCookieOptions);
+    res.cookie('refreshToken', refreshToken, refreshTokenCookieOptions);
+    res.cookie(
+      'status',
+      user.personalInfoId ? 'registered' : 'notRegistered',
+      refreshTokenCookieOptions
+    );
+    res.cookie('userId', user.id, refreshTokenCookieOptions);
+    res.cookie('role', 'user', refreshTokenCookieOptions);
 
-    res.cookie('phoneNumber', phoneNumber, phoneNumberCookieOptions);
-
-    res.cookie('userId', user.id, phoneNumberCookieOptions);
-
-    res.json({ message: 'Sent 6-digit pin' });
+    res.status(200).json({
+      status: user.personalInfoId ? 'registered' : 'notRegistered',
+      message: 'Logged in successfully',
+    });
   } catch (err) {
     const error: CustomError = {
       message: (err as CustomError).message || 'Internal error',
@@ -154,7 +186,9 @@ export const signup: RequestHandler = async (req, res, next) => {
 
     await db.insert(usersTable).values({ email, phoneNumber, fullName });
 
-    res.status(201).json({ message: 'User created successfully' });
+    res
+      .status(201)
+      .json({ message: 'User created successfully and 6 pin-digit was sent' });
   } catch (err) {
     const error: CustomError = {
       message: (err as CustomError).message || 'Internal error',
@@ -164,77 +198,96 @@ export const signup: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const loginWithPhoneOtp: RequestHandler = async (req, res, next) => {
-  const error: CustomError = {
-    message: 'Invalid credential',
-    statusCode: 401,
-  };
+export const user: RequestHandler = async (req, res, next) => {
+  const { userId, role, refreshToken } = req.cookies;
 
-  const { phoneNumber, userId } = req.cookies;
+  if (!userId || !role || !refreshToken)
+    return res.status(401).json({ user: null });
+
+  const user = await db
+    .select({
+      userId: usersTable.id,
+      fullName: usersTable.fullName,
+      phoneNumber: usersTable.phoneNumber,
+      email: usersTable.email,
+      status: personalInfo.id,
+      imgPath: usersTable.imageUrl,
+    })
+    .from(usersTable)
+    .leftJoin(personalInfo, eq(usersTable.id, personalInfo.userId))
+    .where(eq(usersTable.id, userId))
+    .then((res) => res?.[0]);
+
+  return res.json({
+    user: {
+      role,
+      ...user,
+      status: user.status ? 'registered' : 'notRegistered',
+    },
+  });
+};
+
+export const personalInformation: RequestHandler = async (req, res, next) => {
+  const { userId } = req.cookies;
+  const {
+    dateOfBirth,
+    gender,
+    address,
+    occupation,
+    emergencyName,
+    emergencyPhoneNumber,
+    doctorId,
+    insuranceProvider,
+    insuranceNumber,
+    allergies,
+    currentMedications,
+    familyMedHistory,
+    pastMedHistory,
+    identificationType,
+    identificationNumber,
+  } = req.body;
+
   try {
-    if (!phoneNumber) {
-      throw error;
-    }
+    await db.insert(personalInfo).values({
+      doctorId,
+      userId,
+      address,
+      dateOfBirth,
+      emergencyName,
+      emergencyPhoneNumber,
+      gender,
+      identificationType,
+      occupation,
+      identificationNumber,
+      currentMedications,
+      pastMedHistory,
+      familyMedHistory,
+      allergies,
+      insuranceProvider,
+      insurancePolicyNumber: insuranceNumber,
+    });
 
-    const user = (
-      await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.phoneNumber, phoneNumber))
-    )?.[0];
+    res.cookie('status', 'registered', refreshTokenCookieOptions);
 
-    if (!user) throw error;
-
-    const { otp } = req.body;
-
-    const isMatch = user.phoneOtp == otp;
-
-    if (!isMatch) throw error;
-
-    res.clearCookie('phoneNumber', phoneNumberCookieOptions);
-    res.clearCookie('userId', phoneNumberCookieOptions);
-
-    const accessToken = jwt.sign(
-      {
-        userId,
-      },
-      process.env.ACCESS_SECRET!,
-      {
-        algorithm: 'HS256',
-        expiresIn: accessTokenDuration,
-      }
-    );
-
-    const refreshToken = jwt.sign(
-      {
-        userId: user.id,
-      },
-      process.env.REFRESH_SECRET!,
-      {
-        algorithm: 'HS256',
-        expiresIn: refreshTokenDuration,
-      }
-    );
-
-    await db
-      .update(usersTable)
-      .set({ phoneOtp: null, token: refreshToken })
-      .where(eq(usersTable.id, user.id));
-
-    res.cookie('accessToken', accessToken, accessTokenCookieOptions);
-    res.cookie('refreshToken', refreshToken, refreshTokenCookieOptions);
-    res.cookie('userId', userId, refreshTokenCookieOptions);
-    res.cookie('role', 'user', refreshTokenCookieOptions);
-
-    res.status(200).json({ message: 'Logged in successfully' });
-  } catch (err) {
-    next(err);
+    res.status(200).json({
+      message:
+        'Inserted personal information data in the database successfully',
+    });
+  } catch (err: any) {
+    const error: CustomError = {
+      message:
+        'Something went wrong when inserting your information in the database , please try again',
+      statusCode: 400,
+    };
+    next(error);
   }
 };
 
 export const logout: RequestHandler = (req, res, next) => {
   res.clearCookie('accessToken', accessTokenCookieOptions);
   res.clearCookie('refreshToken', refreshTokenCookieOptions);
+  res.clearCookie('status', refreshTokenCookieOptions);
+  res.clearCookie('userId', refreshTokenCookieOptions);
   res.clearCookie('role', refreshTokenCookieOptions);
   res.clearCookie('phoneNumber', phoneNumberCookieOptions);
   res.json({ message: 'Logged out successfully' });

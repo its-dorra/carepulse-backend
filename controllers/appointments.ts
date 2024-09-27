@@ -55,8 +55,53 @@ export const appointmentsCount: RequestHandler = async (req, res, next) => {
   }
 };
 
+export const newAppointment: RequestHandler = async (req, res, next) => {
+  const { userId } = req.cookies;
+
+  const { doctorId, reasonOfAppointment, additionalComments, expectedDate } =
+    req.body;
+
+  try {
+    const newAppointment = await db
+      .insert(newAppointments)
+      .values({
+        userId,
+        doctorId,
+        reasonOfAppointment,
+        additionalComments,
+        expectedDate,
+      })
+      .returning()
+      .then((res) => res[0]);
+
+    res.json({
+      message: 'Scheduling new appointment successfully',
+      newAppointment,
+    });
+  } catch (error: any) {
+    console.log(error);
+    next({ message: error.message, statusCode: 500 });
+  }
+};
+
+export const getLastAppointment: RequestHandler = async (req, res, next) => {
+  const { appointmentId } = req.body;
+
+  const appointment = await db
+    .select()
+    .from(newAppointments)
+    .where(eq(newAppointments.id, appointmentId))
+    .innerJoin(doctorsTable, eq(newAppointments.doctorId, doctorsTable.id))
+    .then((res) => res[0]);
+
+  console.log(appointment);
+
+  res.json({ appointment });
+};
+
 export const scheduleAppointment: RequestHandler = async (req, res, next) => {
   const { id, doctorId, reasonOfAppointment, expectedDate } = req.body;
+
   try {
     await db
       .update(newAppointments)
@@ -70,6 +115,7 @@ export const scheduleAppointment: RequestHandler = async (req, res, next) => {
 
     res.json({ message: 'Appointment scheduled successfully' });
   } catch (err) {
+    console.error(err);
     const error: CustomError = {
       message: 'Failed to schedule the appointment',
       statusCode: 400,
@@ -80,9 +126,6 @@ export const scheduleAppointment: RequestHandler = async (req, res, next) => {
 
 export const cancelAppointment: RequestHandler = async (req, res, next) => {
   const { id, reasonForCancellation } = req.body;
-
-  console.log(reasonForCancellation);
-
   try {
     await db
       .update(newAppointments)

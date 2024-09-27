@@ -5,9 +5,14 @@ import type { CustomError } from '../types/error';
 export const validateDataWithZod = (schema: z.ZodObject<any, any>) => {
   const middleware: RequestHandler = (req, res, next) => {
     try {
-      req.body = schema.parse(req.body);
+      const result = schema.safeParse(req.body);
+      if (result.error) {
+        throw result.error;
+      }
+      req.body = result.data;
       next();
     } catch (err) {
+      console.error(err);
       const error: CustomError = {
         message: 'Invalid data',
         statusCode: 400,

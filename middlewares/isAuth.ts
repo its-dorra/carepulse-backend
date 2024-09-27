@@ -30,10 +30,10 @@ export const isAuth: RequestHandler = async (req, res, next) => {
     const tokenInDB = await db
       .select()
       .from(usersTable)
-      .where(and(eq(usersTable.id, userId), eq(usersTable.token, refreshToken)))
+      .where(eq(usersTable.id, userId))
       .then((res) => res?.[0]);
 
-    if (!tokenInDB) {
+    if (!tokenInDB || tokenInDB.token !== refreshToken) {
       throw { message: 'Unauthorized', statusCode: 401 };
     }
 

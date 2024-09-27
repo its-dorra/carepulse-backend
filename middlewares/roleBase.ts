@@ -1,9 +1,10 @@
 import type { RequestHandler } from 'express';
 import type { CustomError } from '../types/error';
 
-export const roleBased = (roles: string) => {
+export const roleBased = (roles: 'admin' | 'user') => {
   const middleware: RequestHandler = (req, res, next) => {
     const { role } = req.cookies;
+
     if (roles === role) return next();
 
     const error: CustomError = {
