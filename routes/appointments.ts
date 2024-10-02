@@ -12,7 +12,6 @@ import {
   scheduleAppointment,
 } from '../controllers/appointments';
 import { isAuth } from '../middlewares/isAuth';
-import { status } from '../middlewares/status';
 
 const router = Router();
 
@@ -36,8 +35,8 @@ router.post(
   roleBased('admin'),
   validateDataWithZod(
     z.object({
-      id: z.string(),
-      doctorId: z.number(),
+      id: z.number(),
+      doctorId: z.string(),
       reasonOfAppointment: z.string().min(1),
       expectedDate: z.string(),
     })
@@ -72,7 +71,7 @@ router.post(
   '/last-appointment',
   isAuth,
   roleBased('user'),
-  //   status('registered'),
+  // status('registered'),
   getLastAppointment
 );
 

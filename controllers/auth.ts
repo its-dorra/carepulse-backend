@@ -11,14 +11,7 @@ import {
   accessTokenDuration,
   refreshTokenDuration,
 } from '../constants/cookieSettings';
-import twilio from 'twilio';
-import { generatePin } from '../utils';
 import { personalInfo } from '../db/schema/personalInfo';
-
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-
-const client = twilio(accountSid, authToken);
 
 export const loginAdmin: RequestHandler = async (req, res, next) => {
   const { pinCode } = req.body;
@@ -74,6 +67,7 @@ export const loginAdmin: RequestHandler = async (req, res, next) => {
 
     res.status(200).json({ message: 'Logged in successfully' });
   } catch (err) {
+    console.log(err);
     const error: CustomError = {
       message: (err as CustomError).message || 'Internal Error',
       statusCode: (err as CustomError).statusCode || 500,
