@@ -22,8 +22,8 @@ router.post(
   roleBased('admin'),
   validateDataWithZod(
     z.object({
-      perPage: z.number().min(1).default(5),
-      page: z.number().min(1).default(1),
+      perPage: z.coerce.number().min(1).default(5),
+      page: z.coerce.number().min(1).default(1),
     })
   ),
   appointments

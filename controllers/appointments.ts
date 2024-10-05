@@ -10,36 +10,46 @@ import type { CustomError } from '../types/error';
 export const appointments: RequestHandler = async (req, res, next) => {
   const { page, perPage } = req.body;
 
-  const [appointments, totalAppointmentCount] = await Promise.all([
-    db
-      .select({
-        doctor: {
-          id: doctorsTable.id,
-          doctorName: doctorsTable.doctorName,
-          doctorPath: doctorsTable.imgPath,
-        },
-        reasonOfAppointment: newAppointments.reasonOfAppointment,
-        id: newAppointments.id,
-        status: newAppointments.appointmentStatus,
-        date: newAppointments.expectedDate,
-        fullName: usersTable.fullName,
-        expectedDate: newAppointments.expectedDate,
-      })
-      .from(newAppointments)
-      .innerJoin(usersTable, eq(usersTable.id, newAppointments.userId))
-      .innerJoin(doctorsTable, eq(doctorsTable.id, newAppointments.doctorId))
-      .orderBy(newAppointments.expectedDate)
-      .limit(perPage)
-      .offset((page - 1) * perPage),
-    db
-      .select({
-        totalCount: sql<number>`cast(sum(${appointmentsCountTable.count}) as int)`,
-      })
-      .from(appointmentsCountTable)
-      .then((res) => res?.[0]),
-  ]);
+  console.log({ page, perPage });
 
-  res.json({ appointments, totalAppointmentCount });
+  try {
+    const [appointments, totalAppointmentCount] = await Promise.all([
+      db
+        .select({
+          doctor: {
+            id: doctorsTable.id,
+            doctorName: doctorsTable.doctorName,
+            doctorPath: doctorsTable.imgPath,
+          },
+          reasonOfAppointment: newAppointments.reasonOfAppointment,
+          id: newAppointments.id,
+          status: newAppointments.appointmentStatus,
+          date: newAppointments.expectedDate,
+          fullName: usersTable.fullName,
+          expectedDate: newAppointments.expectedDate,
+        })
+        .from(newAppointments)
+        .innerJoin(usersTable, eq(usersTable.id, newAppointments.userId))
+        .innerJoin(doctorsTable, eq(doctorsTable.id, newAppointments.doctorId))
+        .orderBy(newAppointments.expectedDate)
+        .limit(perPage)
+        .offset((page - 1) * perPage),
+      db
+        .select({
+          totalCount: sql<number>`cast(sum(${appointmentsCountTable.count}) as int)`,
+        })
+        .from(appointmentsCountTable)
+        .then((res) => res?.[0]),
+    ]);
+
+    res.json({ appointments, totalAppointmentCount });
+  } catch (err: any) {
+    console.log(err);
+    const error: CustomError = {
+      message: err.message,
+      statusCode: 500,
+    };
+  }
 };
 
 export const appointmentsCount: RequestHandler = async (req, res, next) => {
