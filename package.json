@@ -17,7 +17,7 @@
   },
   "scripts": {
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "bun migrate.ts",
+    "db:migrate": "bunx drizzle-kit push",
     "dev": "bun --watch app.ts",
     "db:studio": "bunx drizzle-kit studio"
   },

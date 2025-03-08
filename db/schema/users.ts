@@ -1,4 +1,3 @@
-import { password } from "bun";
 import { pgTable, text, uniqueIndex, varchar, uuid } from "drizzle-orm/pg-core";
 
 export const users = pgTable(

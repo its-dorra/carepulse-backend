@@ -34,7 +34,7 @@ A robust and scalable backend service for the CarePulse platform, handling authe
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/sam-dorra/carepulse-backend.git
+   git clone https://github.com/its-dorra/carepulse-backend.git
    cd carepulse-backend
    ```
 

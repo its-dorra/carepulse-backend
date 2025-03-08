@@ -5,7 +5,6 @@ import type { CustomError } from "../types/error";
 export const validateDataWithZod = (schema: z.ZodObject<any, any>) => {
   const middleware: RequestHandler = (req, res, next) => {
     try {
-      console.dir(req.body, { depth: null });
       const result = schema.safeParse(req.body);
       if (result.error) {
         throw result.error;

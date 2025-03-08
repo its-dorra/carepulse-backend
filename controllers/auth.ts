@@ -104,7 +104,7 @@ export const login: RequestHandler = async (req, res, next) => {
 
     const isMatch =
       user.phoneNumber === phoneNumber &&
-      (await Bun.password.verify(phoneNumber, user.password!));
+      (await Bun.password.verify(password, user.password!));
 
     if (!isMatch) {
       throw error;
