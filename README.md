@@ -46,10 +46,6 @@ A robust and scalable backend service for the CarePulse platform, handling authe
 
 3. Set up environment variables:
 
-   ```bash
-   cp .env.example .env
-   ```
-
    Edit the `.env` file with your Neon Postgres credentials and other configuration values.
 
 4. Run database migrations:
