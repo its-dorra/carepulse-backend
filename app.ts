@@ -29,6 +29,6 @@ app.use("/appointments", appointments);
 
 app.use(error);
 
-app.listen(8000, () => {
-  console.log("port ", 8000);
+app.listen(3000, () => {
+  console.log("port ", 3000);
 });
