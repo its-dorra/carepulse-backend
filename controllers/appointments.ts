@@ -1,16 +1,14 @@
-import type { RequestHandler } from 'express';
-import { db } from '../db';
-import { newAppointments } from '../db/schema/newAppointment';
-import { users as usersTable } from '../db/schema/users';
-import { eq, sql } from 'drizzle-orm';
-import { doctors as doctorsTable } from '../db/schema/doctors';
-import { appointmentsCount as appointmentsCountTable } from '../db/schema/appointmentsCount';
-import type { CustomError } from '../types/error';
+import type { RequestHandler } from "express";
+import { db } from "../db";
+import { newAppointments } from "../db/schema/newAppointment";
+import { users as usersTable } from "../db/schema/users";
+import { eq, sql } from "drizzle-orm";
+import { doctors as doctorsTable } from "../db/schema/doctors";
+import { appointmentsCount as appointmentsCountTable } from "../db/schema/appointmentsCount";
+import type { CustomError } from "../types/error";
 
 export const appointments: RequestHandler = async (req, res, next) => {
   const { page, perPage } = req.body;
-
-  console.log({ page, perPage });
 
   try {
     const [appointments, totalAppointmentCount] = await Promise.all([
@@ -58,7 +56,7 @@ export const appointmentsCount: RequestHandler = async (req, res, next) => {
     res.json({ statusCount });
   } catch (err) {
     const error: CustomError = {
-      message: (err as any).message || 'Internal error',
+      message: (err as any).message || "Internal error",
       statusCode: 500,
     };
     next(error);
@@ -85,7 +83,7 @@ export const newAppointment: RequestHandler = async (req, res, next) => {
       .then((res) => res[0]);
 
     res.json({
-      message: 'Scheduling new appointment successfully',
+      message: "Scheduling new appointment successfully",
       newAppointment,
     });
   } catch (error: any) {
@@ -104,8 +102,6 @@ export const getLastAppointment: RequestHandler = async (req, res, next) => {
     .innerJoin(doctorsTable, eq(newAppointments.doctorId, doctorsTable.id))
     .then((res) => res[0]);
 
-  console.log(appointment);
-
   res.json({ appointment });
 };
 
@@ -116,18 +112,18 @@ export const scheduleAppointment: RequestHandler = async (req, res, next) => {
     await db
       .update(newAppointments)
       .set({
-        appointmentStatus: 'Scheduled',
+        appointmentStatus: "Scheduled",
         doctorId,
         reasonOfAppointment,
         expectedDate,
       })
       .where(eq(newAppointments.id, id));
 
-    res.json({ message: 'Appointment scheduled successfully' });
+    res.json({ message: "Appointment scheduled successfully" });
   } catch (err) {
     console.error(err);
     const error: CustomError = {
-      message: 'Failed to schedule the appointment',
+      message: "Failed to schedule the appointment",
       statusCode: 400,
     };
     next(error);
@@ -139,14 +135,14 @@ export const cancelAppointment: RequestHandler = async (req, res, next) => {
   try {
     await db
       .update(newAppointments)
-      .set({ appointmentStatus: 'Cancelled' })
+      .set({ appointmentStatus: "Cancelled" })
       .where(eq(newAppointments.id, id));
 
-    res.json({ message: 'Appointment cancelled successfully' });
+    res.json({ message: "Appointment cancelled successfully" });
   } catch (err) {
     console.error(err);
     const error: CustomError = {
-      message: (err as any).message || 'Failed to cancel the appointment',
+      message: (err as any).message || "Failed to cancel the appointment",
       statusCode: 400,
     };
     next(error);
@@ -166,7 +162,7 @@ export const doctors: RequestHandler = async (req, res, next) => {
     res.json({ doctors });
   } catch (err) {
     const error: CustomError = {
-      message: 'Internal error',
+      message: "Internal error",
       statusCode: 500,
     };
     next(error);

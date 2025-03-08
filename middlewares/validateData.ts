@@ -1,10 +1,11 @@
-import type { RequestHandler } from 'express';
-import type { z, ZodError } from 'zod';
-import type { CustomError } from '../types/error';
+import type { RequestHandler } from "express";
+import type { z, ZodError } from "zod";
+import type { CustomError } from "../types/error";
 
 export const validateDataWithZod = (schema: z.ZodObject<any, any>) => {
   const middleware: RequestHandler = (req, res, next) => {
     try {
+      console.dir(req.body, { depth: null });
       const result = schema.safeParse(req.body);
       if (result.error) {
         throw result.error;
@@ -14,10 +15,10 @@ export const validateDataWithZod = (schema: z.ZodObject<any, any>) => {
     } catch (err) {
       console.error(err);
       const error: CustomError = {
-        message: 'Invalid data',
+        message: "Invalid data",
         statusCode: 400,
         errorDetails: (err as ZodError).errors.map((issue) => ({
-          message: `${issue.path.join('.')} is ${issue.message}`,
+          message: `${issue.path.join(".")} is ${issue.message}`,
         })),
       };
       next(error);

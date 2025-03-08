@@ -1,23 +1,23 @@
-import type { RequestHandler } from 'express';
-import { db } from '../db';
-import { users as usersTable } from '../db/schema/users';
-import { eq, or } from 'drizzle-orm';
-import type { CustomError } from '../types/error';
-import jwt from 'jsonwebtoken';
+import type { RequestHandler } from "express";
+import { db } from "../db";
+import { users as usersTable } from "../db/schema/users";
+import { eq, or } from "drizzle-orm";
+import type { CustomError } from "../types/error";
+import jwt from "jsonwebtoken";
 import {
   refreshTokenCookieOptions,
   accessTokenCookieOptions,
   phoneNumberCookieOptions,
   accessTokenDuration,
   refreshTokenDuration,
-} from '../constants/cookieSettings';
-import { personalInfo } from '../db/schema/personalInfo';
+} from "../constants/cookieSettings";
+import { personalInfo } from "../db/schema/personalInfo";
 
 export const loginAdmin: RequestHandler = async (req, res, next) => {
   const { pinCode } = req.body;
 
   const error: CustomError = {
-    message: 'Invalid credential',
+    message: "Invalid credential",
     statusCode: 401,
   };
 
@@ -25,7 +25,7 @@ export const loginAdmin: RequestHandler = async (req, res, next) => {
     const user = await db
       .select()
       .from(usersTable)
-      .where(eq(usersTable.role, 'admin'))
+      .where(eq(usersTable.role, "admin"))
       .then((users) => users?.[0]);
 
     if (!user) throw error;
@@ -40,7 +40,7 @@ export const loginAdmin: RequestHandler = async (req, res, next) => {
       },
       process.env.ACCESS_SECRET!,
       {
-        algorithm: 'HS256',
+        algorithm: "HS256",
         expiresIn: accessTokenDuration,
       }
     );
@@ -51,7 +51,7 @@ export const loginAdmin: RequestHandler = async (req, res, next) => {
       },
       process.env.REFRESH_SECRET!,
       {
-        algorithm: 'HS256',
+        algorithm: "HS256",
         expiresIn: refreshTokenDuration,
       }
     );
@@ -60,16 +60,16 @@ export const loginAdmin: RequestHandler = async (req, res, next) => {
       .update(usersTable)
       .set({ token: refreshToken })
       .where(eq(usersTable.id, user.id));
-    res.cookie('accessToken', accessToken, accessTokenCookieOptions);
-    res.cookie('refreshToken', refreshToken, refreshTokenCookieOptions);
-    res.cookie('role', 'admin', refreshTokenCookieOptions);
-    res.cookie('userId', user.id, refreshTokenCookieOptions);
+    res.cookie("accessToken", accessToken, accessTokenCookieOptions);
+    res.cookie("refreshToken", refreshToken, refreshTokenCookieOptions);
+    res.cookie("role", "admin", refreshTokenCookieOptions);
+    res.cookie("userId", user.id, refreshTokenCookieOptions);
 
-    res.status(200).json({ message: 'Logged in successfully' });
+    res.status(200).json({ message: "Logged in successfully" });
   } catch (err) {
     console.log(err);
     const error: CustomError = {
-      message: (err as CustomError).message || 'Internal Error',
+      message: (err as CustomError).message || "Internal Error",
       statusCode: (err as CustomError).statusCode || 500,
     };
     next(error);
@@ -77,10 +77,10 @@ export const loginAdmin: RequestHandler = async (req, res, next) => {
 };
 
 export const login: RequestHandler = async (req, res, next) => {
-  const { email, phoneNumber } = req.body;
+  const { email, phoneNumber, password } = req.body;
 
   const error: CustomError = {
-    message: 'Invalid credential',
+    message: "Invalid credential",
     statusCode: 401,
   };
 
@@ -91,6 +91,7 @@ export const login: RequestHandler = async (req, res, next) => {
           id: usersTable.id,
           personalInfoId: personalInfo.id,
           phoneNumber: usersTable.phoneNumber,
+          password: usersTable.password,
         })
         .from(usersTable)
         .where(eq(usersTable.email, email))
@@ -101,7 +102,9 @@ export const login: RequestHandler = async (req, res, next) => {
       throw error;
     }
 
-    const isMatch = user.phoneNumber === phoneNumber;
+    const isMatch =
+      user.phoneNumber === phoneNumber &&
+      (await Bun.password.verify(phoneNumber, user.password!));
 
     if (!isMatch) {
       throw error;
@@ -113,7 +116,7 @@ export const login: RequestHandler = async (req, res, next) => {
       },
       process.env.ACCESS_SECRET!,
       {
-        algorithm: 'HS256',
+        algorithm: "HS256",
         expiresIn: accessTokenDuration,
       }
     );
@@ -124,7 +127,7 @@ export const login: RequestHandler = async (req, res, next) => {
       },
       process.env.REFRESH_SECRET!,
       {
-        algorithm: 'HS256',
+        algorithm: "HS256",
         expiresIn: refreshTokenDuration,
       }
     );
@@ -134,23 +137,23 @@ export const login: RequestHandler = async (req, res, next) => {
       .set({ phoneOtp: null, token: refreshToken })
       .where(eq(usersTable.id, user.id));
 
-    res.cookie('accessToken', accessToken, accessTokenCookieOptions);
-    res.cookie('refreshToken', refreshToken, refreshTokenCookieOptions);
+    res.cookie("accessToken", accessToken, accessTokenCookieOptions);
+    res.cookie("refreshToken", refreshToken, refreshTokenCookieOptions);
     res.cookie(
-      'status',
-      user.personalInfoId ? 'registered' : 'notRegistered',
+      "status",
+      user.personalInfoId ? "registered" : "notRegistered",
       refreshTokenCookieOptions
     );
-    res.cookie('userId', user.id, refreshTokenCookieOptions);
-    res.cookie('role', 'user', refreshTokenCookieOptions);
+    res.cookie("userId", user.id, refreshTokenCookieOptions);
+    res.cookie("role", "user", refreshTokenCookieOptions);
 
     res.status(200).json({
-      status: user.personalInfoId ? 'registered' : 'notRegistered',
-      message: 'Logged in successfully',
+      status: user.personalInfoId ? "registered" : "notRegistered",
+      message: "Logged in successfully",
     });
   } catch (err) {
     const error: CustomError = {
-      message: (err as CustomError).message || 'Internal error',
+      message: (err as CustomError).message || "Internal error",
       statusCode: (err as CustomError).statusCode || 500,
     };
     next(error);
@@ -158,7 +161,7 @@ export const login: RequestHandler = async (req, res, next) => {
 };
 
 export const signup: RequestHandler = async (req, res, next) => {
-  const { email, fullName, phoneNumber } = req.body;
+  const { email, fullName, phoneNumber, password } = req.body;
 
   try {
     const existingUser = await db
@@ -171,21 +174,25 @@ export const signup: RequestHandler = async (req, res, next) => {
 
     if (existingUser) {
       const error: CustomError = {
-        message: 'User already exists',
+        message: "User already exists",
         statusCode: 409,
       };
 
       throw error;
     }
 
-    await db.insert(usersTable).values({ email, phoneNumber, fullName });
+    const hashedPassword = await Bun.password.hash(password);
+
+    await db
+      .insert(usersTable)
+      .values({ email, phoneNumber, fullName, password: hashedPassword });
 
     res
       .status(201)
-      .json({ message: 'User created successfully and 6 pin-digit was sent' });
+      .json({ message: "User created successfully and 6 pin-digit was sent" });
   } catch (err) {
     const error: CustomError = {
-      message: (err as CustomError).message || 'Internal error',
+      message: (err as CustomError).message || "Internal error",
       statusCode: (err as CustomError).statusCode || 500,
     };
     next(error);
@@ -216,7 +223,7 @@ export const user: RequestHandler = async (req, res, next) => {
     user: {
       role,
       ...user,
-      status: user.status ? 'registered' : 'notRegistered',
+      status: user.status ? "registered" : "notRegistered",
     },
   });
 };
@@ -261,16 +268,16 @@ export const personalInformation: RequestHandler = async (req, res, next) => {
       insurancePolicyNumber: insuranceNumber,
     });
 
-    res.cookie('status', 'registered', refreshTokenCookieOptions);
+    res.cookie("status", "registered", refreshTokenCookieOptions);
 
     res.status(200).json({
       message:
-        'Inserted personal information data in the database successfully',
+        "Inserted personal information data in the database successfully",
     });
   } catch (err: any) {
     const error: CustomError = {
       message:
-        'Something went wrong when inserting your information in the database , please try again',
+        "Something went wrong when inserting your information in the database , please try again",
       statusCode: 400,
     };
     next(error);
@@ -278,11 +285,11 @@ export const personalInformation: RequestHandler = async (req, res, next) => {
 };
 
 export const logout: RequestHandler = (req, res, next) => {
-  res.clearCookie('accessToken', accessTokenCookieOptions);
-  res.clearCookie('refreshToken', refreshTokenCookieOptions);
-  res.clearCookie('status', refreshTokenCookieOptions);
-  res.clearCookie('userId', refreshTokenCookieOptions);
-  res.clearCookie('role', refreshTokenCookieOptions);
-  res.clearCookie('phoneNumber', phoneNumberCookieOptions);
-  res.json({ message: 'Logged out successfully' });
+  res.clearCookie("accessToken", accessTokenCookieOptions);
+  res.clearCookie("refreshToken", refreshTokenCookieOptions);
+  res.clearCookie("status", refreshTokenCookieOptions);
+  res.clearCookie("userId", refreshTokenCookieOptions);
+  res.clearCookie("role", refreshTokenCookieOptions);
+  res.clearCookie("phoneNumber", phoneNumberCookieOptions);
+  res.json({ message: "Logged out successfully" });
 };
