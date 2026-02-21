@@ -19,6 +19,10 @@ app.use(helmet());
 app.use(cors(corsOptions));
 app.use(cookieParser());
 
+app.get("/", (req, res) => {
+  res.json({ message: "Welcome to CarePulse API" });
+});
+
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
