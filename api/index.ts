@@ -29,6 +29,4 @@ app.use("/appointments", appointments);
 
 app.use(error);
 
-app.listen(3000, () => {
-  console.log("port ", 3000);
-});
+export default app;
