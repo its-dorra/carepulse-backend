@@ -1,6 +1,6 @@
 {
   "name": "backend",
-  "module": "api/index.ts",
+  "module": "app.ts",
   "type": "module",
   "devDependencies": {
     "@types/bun": "latest",
@@ -17,7 +17,6 @@
   "scripts": {
     "db:generate": "drizzle-kit generate",
     "db:migrate": "bunx drizzle-kit push",
-    "dev": "bun --watch api/index.ts",
     "db:studio": "bunx drizzle-kit studio"
   },
   "dependencies": {
