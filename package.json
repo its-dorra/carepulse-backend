@@ -1,9 +1,8 @@
 {
   "name": "backend",
-  "module": "app.ts",
+  "module": "api/index.ts",
   "type": "module",
   "devDependencies": {
-    "@flydotio/dockerfile": "^0.5.9",
     "@types/bun": "latest",
     "@types/cookie-parser": "^1.4.7",
     "@types/cors": "^2.8.17",
@@ -18,7 +17,7 @@
   "scripts": {
     "db:generate": "drizzle-kit generate",
     "db:migrate": "bunx drizzle-kit push",
-    "dev": "bun --watch app.ts",
+    "dev": "bun --watch api/index.ts",
     "db:studio": "bunx drizzle-kit studio"
   },
   "dependencies": {

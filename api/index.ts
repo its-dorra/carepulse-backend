@@ -3,12 +3,12 @@ import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
-import { error } from "./middlewares/error";
+import { error } from "../middlewares/error";
 
-import { corsOptions } from "./constants/cors";
+import { corsOptions } from "../constants/cors";
 
-import auth from "./routes/auth";
-import appointments from "./routes/appointments";
+import auth from "../routes/auth";
+import appointments from "../routes/appointments";
 
 const app = express();
 
